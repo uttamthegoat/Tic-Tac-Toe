@@ -1,14 +1,21 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 
-interface LoginProps {
-  onLogin: (username: string) => void;
-}
-
-const Login: React.FC<LoginProps> = ({ onLogin }) => {
+const Login: React.FC = () => {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    const token = localStorage.getItem('token');
+    const username = localStorage.getItem('username');
+    
+    if (token && username) {
+      navigate('/room');
+    }
+  }, [navigate]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -16,13 +23,6 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
     setIsLoading(true);
 
     try {
-      // First, test if server is reachable
-      const testResponse = await fetch('http://localhost:3001/test');
-      if (!testResponse.ok) {
-        throw new Error('Cannot connect to server');
-      }
-
-      // Proceed with login
       const response = await fetch('http://localhost:3001/api/auth/login', {
         method: 'POST',
         headers: {
@@ -32,16 +32,17 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
       });
 
       const data = await response.json();
-      console.log('Login response:', data);
 
       if (data.success) {
-        onLogin(username);
+        localStorage.setItem('token', data.data.token);
+        localStorage.setItem('username', data.data.username);
+        navigate('/room');
       } else {
         setError(data.message || 'Invalid credentials');
       }
     } catch (err) {
       console.error('Login error:', err);
-      setError('Server connection failed. Please make sure the server is running on port 3001');
+      setError('Server connection failed. Please try again.');
     } finally {
       setIsLoading(false);
     }

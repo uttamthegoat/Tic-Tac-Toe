@@ -1,31 +1,50 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import socketService from '../services/socketService';
 
-interface RoomProps {
-  username: string;
-  onJoinRoom: (roomId: string) => void;
-  onCreateRoom: (roomId: string) => void;
-  error?: string;
-  isLoading?: boolean;
-}
-
-const Room: React.FC<RoomProps> = ({ 
-  username, 
-  onJoinRoom, 
-  onCreateRoom, 
-  error, 
-  isLoading 
-}) => {
+const Room: React.FC = () => {
   const [roomId, setRoomId] = useState('');
-  const [mode, setMode] = useState<'join' | 'create' | null>(null);
+  const [error, setError] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const [mode, setMode] = useState<'create' | 'join' | null>(null);
+  const navigate = useNavigate();
+  const username = localStorage.getItem('username')!;
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
+  useEffect(() => {
+    // Connect socket when component mounts
+    if (!socketService.isConnected()) {
+      socketService.connect();
+    }
+
+    // Don't disconnect when component unmounts
+    return () => {};
+  }, []);
+
+  const handleCreateRoom = async () => {
     if (!roomId.trim()) return;
+    setIsLoading(true);
+    setError('');
+    try {
+      await socketService.createRoom(roomId, username);
+      navigate(`/game/${roomId}`);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to create room');
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
-    if (mode === 'create') {
-      onCreateRoom(roomId);
-    } else if (mode === 'join') {
-      onJoinRoom(roomId);
+  const handleJoinRoom = async () => {
+    if (!roomId.trim()) return;
+    setIsLoading(true);
+    setError('');
+    try {
+      await socketService.joinRoom(roomId, username);
+      navigate(`/game/${roomId}`);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to join room');
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -40,39 +59,41 @@ const Room: React.FC<RoomProps> = ({
       )}
 
       {!mode ? (
+        // Mode Selection Buttons
         <div className="space-y-4">
           <button
             onClick={() => setMode('create')}
-            className="w-full bg-blue-500 hover:bg-blue-600 text-white p-2 rounded"
+            className="w-full bg-blue-500 hover:bg-blue-600 text-white p-3 rounded transition-colors"
           >
             Create New Room
           </button>
           <button
             onClick={() => setMode('join')}
-            className="w-full bg-green-500 hover:bg-green-600 text-white p-2 rounded"
+            className="w-full bg-green-500 hover:bg-green-600 text-white p-3 rounded transition-colors"
           >
             Join Existing Room
           </button>
         </div>
       ) : (
-        <form onSubmit={handleSubmit} className="space-y-4">
+        // Room ID Input and Submit
+        <div className="space-y-4">
           <div>
             <label className="block mb-2">
-              {mode === 'create' ? 'Enter New Room ID:' : 'Enter Room ID:'}
+              {mode === 'create' ? 'Create Room ID:' : 'Enter Room ID:'}
             </label>
             <input
               type="text"
               value={roomId}
               onChange={(e) => setRoomId(e.target.value)}
-              placeholder={mode === 'create' ? 'Create room ID' : 'Enter room ID'}
-              className="w-full p-2 border rounded"
+              placeholder={mode === 'create' ? 'Enter new room ID' : 'Enter existing room ID'}
+              className="w-full p-2 border rounded mb-4"
               disabled={isLoading}
               required
             />
           </div>
           
           <button
-            type="submit"
+            onClick={mode === 'create' ? handleCreateRoom : handleJoinRoom}
             disabled={isLoading || !roomId.trim()}
             className={`w-full ${
               isLoading || !roomId.trim()
@@ -80,7 +101,7 @@ const Room: React.FC<RoomProps> = ({
                 : mode === 'create'
                   ? 'bg-blue-500 hover:bg-blue-600'
                   : 'bg-green-500 hover:bg-green-600'
-            } text-white p-2 rounded`}
+            } text-white p-2 rounded transition-colors`}
           >
             {isLoading 
               ? 'Processing...' 
@@ -91,13 +112,16 @@ const Room: React.FC<RoomProps> = ({
           </button>
 
           <button
-            type="button"
-            onClick={() => setMode(null)}
-            className="w-full bg-gray-300 hover:bg-gray-400 text-gray-800 p-2 rounded"
+            onClick={() => {
+              setMode(null);
+              setRoomId('');
+              setError('');
+            }}
+            className="w-full bg-gray-300 hover:bg-gray-400 text-gray-800 p-2 rounded transition-colors"
           >
             Back
           </button>
-        </form>
+        </div>
       )}
     </div>
   );
