@@ -1,85 +1,107 @@
-import { Request, Response } from 'express';
+import pool from '../config/database';
 import jwt from 'jsonwebtoken';
-import authService from '../services/authService';
+import { Request, Response } from 'express';
+import dotenv from 'dotenv';
+dotenv.config()
 
-// You should store this in an environment variable
+// const JWT_SECRET = process.env.JWT_SECRET || 'fallback_secret';
 const JWT_SECRET = 'your-secret-key';
 
-export const login = (req: Request, res: Response) => {
+export async function login(req: Request, res: Response) {
+  const { username, password } = req.body;
+  
   try {
-    const { username, password } = req.body;
-
-    if (!username || !password) {
-      return res.status(400).json({ 
-        success: false, 
-        message: 'Username and password are required' 
-      });
-    }
-
-    const isAuthenticated = authService.authenticateUser(username, password);
-
-    if (!isAuthenticated) {
-      return res.status(401).json({ 
-        success: false, 
-        message: 'Invalid credentials' 
-      });
-    }
-
-    // Generate JWT token
-    const token = jwt.sign(
-      { 
-        username,
-        // You can add more data to the token payload if needed
-      }, 
-      JWT_SECRET,
-      { 
-        expiresIn: '24h' // Token expires in 24 hours
-      }
+    const [rows]: any = await pool.query(
+      'SELECT * FROM users WHERE username = ?',
+      [username]
     );
 
-    return res.status(200).json({
-      success: true,
-      message: 'Login successful',
-      data: { 
-        username,
-        token
-      }
-    });
-  } catch (error) {
-    console.error('Login error:', error);
-    return res.status(500).json({ 
-      success: false, 
-      message: 'Internal server error' 
-    });
-  }
-};
-
-// Add middleware to verify JWT tokens
-export const verifyToken = (req: Request, res: Response, next: Function) => {
-  try {
-    const authHeader = req.headers.authorization;
-    
-    if (!authHeader) {
-      return res.status(401).json({
-        success: false,
-        message: 'No token provided'
+    if (rows.length === 0) {
+      return res.status(401).json({ 
+        success: false, 
+        message: 'User not found' 
       });
     }
 
-    // Extract token from Bearer header
-    const token = authHeader.split(' ')[1];
-    
-    // Verify token
-    const decoded = jwt.verify(token, JWT_SECRET);
-    
-    // Add decoded user data to request object
-    // req.user = decoded;
-    
-    next();
+    // Check if password matches
+    if (rows[0].password !== password) {
+      return res.status(401).json({ 
+        success: false, 
+        message: 'Invalid password' 
+      });
+    }
+
+    // Generate token if password matches
+    const token = jwt.sign(
+      { id: rows[0].id, username: rows[0].username }, 
+      JWT_SECRET,
+      { expiresIn: '24h' }
+    );
+
+    res.json({ 
+      success: true,
+      token,
+      user: {
+        id: rows[0].id,
+        username: rows[0].username
+      }
+    });
+
   } catch (error) {
-    return res.status(401).json({
-      success: false,
-      message: 'Invalid token'
+    console.error('Login error:', error);
+    res.status(500).json({ 
+      success: false, 
+      error: 'Internal server error' 
     });
   }
-}; 
+}
+
+
+export async function register(req: Request, res: Response) {
+  const { username, email, password } = req.body;
+  
+  try {
+    // Check if user already exists
+    const [existingUser]: any = await pool.query(
+      'SELECT * FROM users WHERE username = ? OR email = ?',
+      [username, email]
+    );
+
+    if (existingUser.length > 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'Username or email already exists'
+      });
+    }
+
+    // Insert new user
+    const [result]: any = await pool.query(
+      'INSERT INTO users (username, email, password) VALUES (?, ?, ?)',
+      [username, email, password]
+    );
+
+    // Generate token for new user
+    const token = jwt.sign(
+      { id: result.insertId, username },
+      JWT_SECRET,
+      { expiresIn: '24h' }
+    );
+
+    res.status(201).json({
+      success: true,
+      token,
+      user: {
+        id: result.insertId,
+        username,
+        email
+      }
+    });
+
+  } catch (error) {
+    console.error('Registration error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Internal server error'
+    });
+  }
+}

@@ -1,6 +1,10 @@
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
+import dotenv from 'dotenv';
 
+dotenv.config();
+
+// const JWT_SECRET = process.env.JWT_SECRET || 'fallback_secret';
 const JWT_SECRET = 'your-secret-key';
 
 export const authenticateToken = (req: Request, res: Response, next: NextFunction) => {
@@ -24,7 +28,6 @@ export const authenticateToken = (req: Request, res: Response, next: NextFunctio
         });
       }
 
-    //   req.user = user;
       next();
     });
   } catch (error) {

@@ -34,8 +34,9 @@ const Login: React.FC = () => {
       const data = await response.json();
 
       if (data.success) {
-        localStorage.setItem('token', data.data.token);
-        localStorage.setItem('username', data.data.username);
+        console.log(data.token)
+        localStorage.setItem('token', data.token);
+        localStorage.setItem('username', data.user.username);
         navigate('/room');
       } else {
         setError(data.message || 'Invalid credentials');
@@ -90,11 +91,20 @@ const Login: React.FC = () => {
         </button>
       </form>
 
-      <div className="mt-4 text-sm text-gray-600">
+      <div className="mt-4 text-center">
+        <button
+          onClick={() => navigate('/register')}
+          className="text-blue-500 hover:text-blue-700"
+        >
+          No account? Sign up
+        </button>
+      </div>
+
+      {/*<div className="mt-4 text-sm text-gray-600">
         <p>Available users:</p>
         <p>Username: player1, Password: pass123</p>
         <p>Username: player2, Password: pass456</p>
-      </div>
+      </div>*/}
     </div>
   );
 };

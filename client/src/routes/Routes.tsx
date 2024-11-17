@@ -4,6 +4,7 @@ import Login from '../components/Login';
 import Room from '../components/Room';
 import GameBoard from '../components/GameBoard';
 import NavBar from '../components/NavBar';
+import Register from '../components/Register'
 
 // Protected Route wrapper component
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -27,6 +28,7 @@ const AppRoutes: React.FC = () => {
     <BrowserRouter>
       <Routes>
         <Route path="/login" element={<Login />} />
+        <Route path="/register" element={<Register />} />
         <Route
           path="/room"
           element={

@@ -2,7 +2,7 @@ import express from 'express';
 import { createServer } from 'http';
 import { Server, Socket } from 'socket.io';
 import cors from 'cors';
-import { login, verifyToken } from './controllers/authController';
+import { login, register } from './controllers/authController';
 
 const app = express();
 const httpServer = createServer(app);
@@ -18,6 +18,9 @@ app.use(express.json());
 // Auth routes
 app.post('/api/auth/login', (req, res) => {
     login(req, res);
+});
+app.post('/api/auth/register', (req, res) => {
+    register(req, res);
 });
 
 // Test route
